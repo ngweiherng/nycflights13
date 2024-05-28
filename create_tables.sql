@@ -1,80 +1,84 @@
--- !preview conn=con_flight
+-- !preview conn=con_nycflights13
 
--- Table for data on tickets used to board the Titanic
+-- Import table for weather
 DROP TABLE IF EXISTS weather CASCADE;
 CREATE TABLE weather (
-   origin VARCHAR(3),
-   year INT,
-   month INT,
-   day INT,
-   hour INT,
-   temp FLOAT,
-   dewp FLOAT,
-   humid FLOAT,
-   wind_dir FLOAT,
-   wind_speed FLOAT,
-   wind_gust FLOAT,
-   precip FLOAT,
-   pressure FLOAT,
-   visib FLOAT,
-   time_hour TIMESTAMP
+    origin CHAR(3),
+    year INT,
+    month INT,
+    day INT,
+    hour INT,
+    temp NUMERIC,
+    dewp NUMERIC,
+    humid NUMERIC,
+    wind_dir INT,
+    wind_speed NUMERIC,
+    wind_gust NUMERIC,
+    precip NUMERIC,
+    pressure NUMERIC,
+    visib NUMERIC,
+    time_hour TIMESTAMP,
+    PRIMARY KEY (origin, time_hour)
 );
 COPY weather
-FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/nycflights13/weather.csv'
+FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/weather.csv'
 CSV HEADER;
 
--- Table for airlines
+-- Import table for airlines
 DROP TABLE IF EXISTS airlines CASCADE;
 CREATE TABLE airlines (
-   carrier VARCHAR(2),
-   name VARCHAR(100)
+    carrier CHAR(2),
+    name VARCHAR(255),
+    PRIMARY KEY (carrier)
 );
 COPY airlines
-FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/nycflights13/airlines.csv'
+FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/airlines.csv'
 CSV HEADER;
 
 
--- Table for airports
+-- Import table for airports
 DROP TABLE IF EXISTS airports CASCADE;
 CREATE TABLE airports (
-   faa VARCHAR(3),
-   name VARCHAR(100),
-   lat FLOAT,
-   lon FLOAT,
-   alt INT,
-   tz INT,
-   dst VARCHAR(1),
-   tzone VARCHAR(100)
+    faa CHAR(3),
+    name VARCHAR(255),
+    lat NUMERIC,
+    lon NUMERIC,
+    alt INT,
+    tz INT,
+    dst CHAR(1),
+    tzone VARCHAR(255),
+    PRIMARY KEY (faa)
 );
 COPY airports
-FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/nycflights13/airports.csv'
+FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/airports.csv'
 CSV HEADER;
 
--- Table for flights
+-- Import table for flights from New York City's main airports in 2013
 DROP TABLE IF EXISTS flights CASCADE;
 CREATE TABLE flights (
-   year INT,
-   month INT,
-   day INT,
-   dep_time INT,
-   sched_dep_time INT,
-   dep_delay INT,
-   arr_time INT,
-   sched_arr_time INT,
-   arr_delay INT,
-   carrier VARCHAR(2),
-   flight INT,
-   tailnum VARCHAR(10),
-   origin VARCHAR(3),
-   dest VARCHAR(3),
-   air_time INT,
-   distance INT,
-   hour INT,
-   minute INT,
-   time_hour TIMESTAMP
+    year INT,
+    month INT,
+    day INT,
+    dep_time INT,
+    sched_dep_time INT,
+    dep_delay INT,
+    arr_time INT,
+    sched_arr_time INT,
+    arr_delay INT,
+    carrier CHAR(2),
+    flight INT,
+    tailnum VARCHAR(6),
+    origin CHAR(3),
+    dest CHAR(3),
+    air_time INT,
+    distance INT,
+    hour INT,
+    minute INT,
+    time_hour TIMESTAMP,
+    PRIMARY KEY (carrier, flight, time_hour)
 );
 COPY flights
-FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/nycflights13/flights.csv'
+FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/flights.csv'
 CSV HEADER;
 
 -- Table for planes
@@ -88,8 +92,18 @@ CREATE TABLE planes (
    engines INT,
    seats INT,
    speed INT,
-   engine VARCHAR(100)
+   engine VARCHAR(100),
+   PRIMARY KEY (tailnum)
 );
 COPY planes
-FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/nycflights13/planes.csv'
+FROM 'C:/Users/agccc/OneDrive/Desktop/AAI1001/nycflights13/planes.csv'
 CSV HEADER;
+
+-- Add foreign keys
+ALTER TABLE flights
+ADD FOREIGN KEY (carrier) REFERENCES airlines (carrier),
+ADD FOREIGN KEY (origin) REFERENCES airports (faa),
+ADD FOREIGN KEY (dest) REFERENCES airports (faa),
+ADD FOREIGN KEY (tailnum) REFERENCES planes (tailnum);
+ALTER TABLE weather
+ADD FOREIGN KEY (origin) REFERENCES airports (faa);
