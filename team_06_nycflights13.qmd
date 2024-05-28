@@ -1,0 +1,28 @@
+---
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+EEEEEE--- title: Week 4 Team 06 Exercise author: date: 2021-09-20
+date-format: "dddd MMM D, YYYY"
+
+format: html: toc: true toc-depth: 3 toc-location: left number-sections:
+true number-depth: 3 ---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(knitr)
+library(DBI)
+con_con_nycflights13 <- dbConnect(odbc::odbc(), dsn = "nycflights13")
+```
+
+# Task 1
+
+# Task 2
+
+# Task 3
+
+# Task 4
