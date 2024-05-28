@@ -2,13 +2,20 @@
 editor: 
   markdown: 
     wrap: 72
----
-
-EEEEEE--- title: Week 4 Team 06 Exercise author: date: 2021-09-20
+    title: Week 4 Team 06 Exercise 
+    author: YEO SONG CHEN, LEE RU YUAN, TIMOTHY ZOE DELAYA, AGCANAS CLARENCE ANGELO MISAGAL, NG WEI HERNG
+    date: 2024-05-28
 date-format: "dddd MMM D, YYYY"
 
-format: html: toc: true toc-depth: 3 toc-location: left number-sections:
-true number-depth: 3 ---
+format: 
+  html: 
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    number-sections: true
+    number-depth: 3
+    embed-resources: true
+---
 
 ```{r}
 #| label: setup
@@ -16,13 +23,275 @@ true number-depth: 3 ---
 
 library(knitr)
 library(DBI)
-con_con_nycflights13 <- dbConnect(odbc::odbc(), dsn = "nycflights13")
+con_nycflights13 <- dbConnect(odbc::odbc(), dsn = "nycflights13")
 ```
 
 # Task 1
 
 # Task 2
 
+## Previewing Tables
+
+```{sql}
+#| connection=con_nycflights13
+
+SELECT *
+FROM airports
+WHERE tzone = 'America/New_York';
+```
+
+```{sql}
+#| connection=con_nycflights13
+
+SELECT * 
+FROM flights
+```
+
+## Task 2.1
+
+```{sql}
+#| connection=con_nycflights13
+
+SELECT airport_code, airport_name, num_destinations,
+       RANK() OVER (ORDER BY num_destinations DESC, airport_code ASC) AS rank
+FROM (
+    SELECT f.origin AS airport_code, a.name AS airport_name, COUNT(DISTINCT f.dest) AS num_destinations
+    FROM flights f
+    INNER JOIN airports a ON f.origin = a.faa
+    WHERE f.origin IN ('JFK', 'LGA', 'EWR')
+    GROUP BY f.origin, a.name
+) AS destinations_count
+ORDER BY rank, airport_code;
+
+
+```
+
+## Task 2.2
+
+```{sql}
+#| connection=con_nycflights13
+SELECT airport_code, airport_name, total_seats, rank
+FROM (
+    SELECT nf.dest AS airport_code, a.name AS airport_name, nf.total_seats,
+           RANK() OVER (ORDER BY nf.total_seats DESC, nf.dest ASC) AS rank
+    FROM (
+        SELECT f.dest, SUM(p.seats) AS total_seats
+        FROM flights f
+        INNER JOIN planes p ON f.tailnum = p.tailnum
+        WHERE f.origin IN ('JFK', 'LGA', 'EWR')
+        GROUP BY f.dest
+    ) nf
+    INNER JOIN airports a ON nf.dest = a.faa
+) ranked_destinations
+WHERE rank <= 10
+ORDER BY rank, airport_code;
+  
+
+```
+
+## Task 2.3
+
+```{sql}
+#| connection=con_nycflights13
+SELECT airport_code, airport_name, num_flights, rank
+FROM (
+    SELECT
+        jf.dest AS airport_code,
+        a.name AS airport_name,
+        jf.num_flights,
+        RANK() OVER (ORDER BY jf.num_flights DESC, jf.dest ASC) AS rank
+    FROM (
+        SELECT dest, COUNT(*) AS num_flights
+        FROM flights
+        WHERE origin = 'JFK'
+        GROUP BY dest
+    ) jf
+    INNER JOIN airports a ON jf.dest = a.faa
+) ranked_destinations
+WHERE rank <= 10
+ORDER BY rank, airport_code;
+
+```
+
+## Task 2.4
+
+```{sql}
+#| connection=con_nycflights13
+SELECT ROUND((on_time_flights::numeric / total_flights) * 100, 2) AS percentage_on_time
+FROM (
+    SELECT 
+        COUNT(*) FILTER (WHERE arr_delay <= 0) AS on_time_flights,
+        COUNT(*) AS total_flights
+    FROM flights
+    WHERE dep_delay >= 30
+) AS delayed_flights;
+
+```
+
+## Task 2.5
+
+```{sql}
+#| connection=con_nycflights13
+SELECT 
+    tailnum,
+    manufacturer,
+    model,
+    mean_speed,
+    rank
+FROM (
+    SELECT 
+        tailnum,
+        manufacturer,
+        model,
+        mean_speed,
+        RANK() OVER (ORDER BY mean_speed DESC) AS rank
+    FROM (
+        SELECT 
+            f.tailnum,
+            p.manufacturer,
+            p.model,
+            AVG(f.distance / NULLIF(f.air_time, 0) * 60.0) AS mean_speed,
+            COUNT(*) AS flight_count
+        FROM flights f
+        JOIN planes p ON f.tailnum = p.tailnum
+        WHERE f.origin IN ('JFK', 'LGA', 'EWR')
+        GROUP BY f.tailnum, p.manufacturer, p.model
+        HAVING COUNT(*) >= 10
+    ) AS flight_speeds
+) AS ranked_speeds
+WHERE rank <= 10
+ORDER BY rank, tailnum;
+```
+
 # Task 3
 
 # Task 4
+
+## Task 4.1
+
+```{sql}
+#| connection=con_nycflights13
+SELECT 
+    COUNT(*) AS missing_combinations
+FROM (
+    SELECT DISTINCT f.origin, f.time_hour
+    FROM flights f
+    LEFT JOIN weather w
+    ON f.origin = w.origin AND f.time_hour = w.time_hour
+    WHERE w.origin IS NULL
+) AS missing;
+
+```
+
+## Task 4.2
+
+```{sql}
+#| connection=con_nycflights13
+SELECT 
+    airport_code,
+    airport_name,
+    is_dry,
+    ROUND((on_time_flights::numeric / total_flights) * 100, 2) AS on_time_percentage
+FROM (
+    SELECT 
+        f.origin AS airport_code,
+        a.name AS airport_name,
+        (w.precip = 0) AS is_dry,
+        COUNT(*) AS total_flights,
+        SUM(CASE WHEN f.dep_delay <= 0 THEN 1 ELSE 0 END) AS on_time_flights
+    FROM flights f
+    JOIN weather w ON f.origin = w.origin AND f.time_hour = w.time_hour
+    JOIN airports a ON f.origin = a.faa
+    WHERE f.origin IN ('JFK', 'LGA', 'EWR')
+    GROUP BY f.origin, a.name, is_dry
+) AS on_time_departures
+ORDER BY airport_code, is_dry;
+
+
+
+```
+
+## Task 4.3
+
+```{sql}
+#| connection=con_nycflights13
+SELECT 
+    airport_code,
+    airport_name,
+    mean_departure_delay,
+    rank
+FROM (
+    SELECT 
+        airport_code,
+        airport_name,
+        mean_departure_delay,
+        RANK() OVER (ORDER BY mean_departure_delay ASC) AS rank
+    FROM (
+        SELECT 
+            f.origin AS airport_code,
+            a.name AS airport_name,
+            ROUND(AVG(f.dep_delay), 2) AS mean_departure_delay
+        FROM flights f
+        JOIN weather w ON f.origin = w.origin AND f.time_hour = w.time_hour
+        JOIN airports a ON f.origin = a.faa
+        WHERE f.origin IN ('JFK', 'LGA', 'EWR') AND w.visib < 1
+        GROUP BY f.origin, a.name
+    ) AS mean_delays
+) AS ranked_delays
+ORDER BY rank, airport_code;
+
+
+```
+
+## Task 4.4
+
+```{sql}
+#| connection=con_nycflights13
+SELECT 
+    CAST(CORR(dw.mean_temp, dd.mean_dep_delay) AS DECIMAL(10, 2)) AS correlation_coefficient
+FROM (
+    SELECT 
+        origin,
+        DATE(time_hour) AS day,
+        AVG(temp) AS mean_temp
+    FROM weather
+    GROUP BY origin, DATE(time_hour)
+) AS dw
+JOIN (
+    SELECT 
+        origin,
+        DATE(time_hour) AS day,
+        AVG(dep_delay) AS mean_dep_delay
+    FROM flights
+    GROUP BY origin, DATE(time_hour)
+) AS dd
+ON dw.origin = dd.origin AND dw.day = dd.day;
+
+
+```
+
+## Task 4.5
+
+```{sql}
+#| connection=con_nycflights13
+SELECT 
+    wind_direction,
+    ROUND(AVG(air_time), 2) AS mean_air_time
+FROM (
+    SELECT 
+        f.air_time,
+        CASE 
+            WHEN w.wind_dir BETWEEN 135 AND 225 THEN 'south'
+            WHEN w.wind_dir BETWEEN 0 AND 45 OR w.wind_dir BETWEEN 315 AND 360 THEN 'north'
+            ELSE NULL
+        END AS wind_direction
+    FROM flights f
+    JOIN weather w ON f.origin = w.origin AND f.time_hour = w.time_hour
+    WHERE f.dest = 'BTV'
+) AS flight_times
+WHERE wind_direction IS NOT NULL
+GROUP BY wind_direction
+ORDER BY wind_direction;
+
+
+```
