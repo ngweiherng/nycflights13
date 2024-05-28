@@ -498,3 +498,8 @@ ORDER BY wind_direction;
 
 
 ```
+
+```{r}
+library(DBI)
+con_nycflights13 <- dbConnect(odbc::odbc(), dsn = "nycflights13")
+```
