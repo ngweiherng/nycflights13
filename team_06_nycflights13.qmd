@@ -27,6 +27,11 @@ con_nycflights13 <- dbConnect(odbc::odbc(), dsn = "nycflights13")
 ```
 
 # Task 1
+## Team Members
+![Team_06](img/img2.jpg)
+
+## Syncing the Github Repository
+![Push user different from owner](img/img1.jpg)
 
 # Task 2
 
@@ -164,6 +169,204 @@ ORDER BY rank, tailnum;
 ```
 
 # Task 3
+## Task 3.1
+```{sql}
+#| connection: con_nycflights13
+#| eval: true
+#| echo: true
+-- Question 1
+DROP VIEW IF EXISTS chicago_airports;
+
+CREATE VIEW chicago_airports AS
+SELECT faa, name
+FROM airports
+WHERE name LIKE '%Chicago%';
+```
+```{sql}
+#| connection: con_nycflights13
+SELECT *
+FROM chicago_airports;
+```
+## Task 3.2
+```{sql}
+#| connection=con_nycflights13
+-- Question 2
+WITH nyc_to_chicago_flights AS (
+    SELECT
+        f.dest AS destination_code,
+        a.name AS destination_name,
+        COUNT(*) AS num_flights
+    FROM
+        flights f
+    JOIN
+        airports a ON f.dest = a.faa
+    JOIN
+        airports nyc ON f.origin = nyc.faa
+    WHERE
+        nyc.faa IN ('JFK', 'LGA', 'EWR')
+        AND a.faa IN (SELECT faa FROM chicago_airports)
+    GROUP BY
+        f.dest, a.name
+),
+ranked_flights AS (
+    SELECT
+        destination_code,
+        destination_name,
+        num_flights,
+        RANK() OVER (ORDER BY num_flights DESC, destination_code) AS rank
+    FROM
+        nyc_to_chicago_flights
+)
+SELECT
+    destination_code,
+    destination_name,
+    num_flights,
+    rank
+FROM
+    ranked_flights
+ORDER BY
+    rank,
+    destination_code;
+```
+## Task 3.3
+```{sql}
+#| connection=con_nycflights13
+
+WITH nyc_to_chicago_flights AS (
+    SELECT
+        f.carrier AS airline_code,
+        a.name AS airline_name,
+        COUNT(*) AS num_flights
+    FROM
+        flights f
+    JOIN
+        airlines a ON f.carrier = a.carrier
+    JOIN
+        airports nyc ON f.origin = nyc.faa
+    JOIN
+        airports chicago ON f.dest = chicago.faa
+    WHERE
+        nyc.faa IN ('JFK', 'LGA', 'EWR')
+        AND chicago.faa IN (SELECT faa FROM chicago_airports)
+    GROUP BY
+        f.carrier, a.name
+),
+ranked_flights AS (
+    SELECT
+        airline_code,
+        airline_name,
+        num_flights,
+        RANK() OVER (ORDER BY num_flights DESC, airline_code) AS rank
+    FROM
+        nyc_to_chicago_flights
+)
+SELECT
+    airline_code,
+    airline_name,
+    num_flights,
+    rank
+FROM
+    ranked_flights
+ORDER BY
+    rank,
+    airline_code;
+```
+## Task 3.4
+```{sql}
+#| connection=con_nycflights13
+
+WITH nyc_to_chicago_flights AS (
+    SELECT
+        p.manufacturer AS manufacturer,
+        p.model AS model,
+        COUNT(*) AS num_flights
+    FROM
+        flights f
+    JOIN
+        planes p ON f.tailnum = p.tailnum
+    JOIN
+        airports nyc ON f.origin = nyc.faa
+    JOIN
+        airports chicago ON f.dest = chicago.faa
+    WHERE
+        nyc.faa IN ('JFK', 'LGA', 'EWR')
+        AND chicago.faa IN (SELECT faa FROM chicago_airports)
+    GROUP BY
+        p.manufacturer, p.model
+),
+ranked_flights AS (
+    SELECT
+        manufacturer,
+        model,
+        num_flights,
+        RANK() OVER (ORDER BY num_flights DESC, manufacturer, model) AS rank
+    FROM
+        nyc_to_chicago_flights
+)
+SELECT
+    manufacturer,
+    model,
+    num_flights,
+    rank
+FROM
+    ranked_flights
+WHERE
+    rank <= 10
+ORDER BY
+    rank,
+    manufacturer,
+    model;
+```
+## Task 3.5
+```{sql}
+#| connection=con_nycflights13
+
+WITH nyc_to_chicago_seats AS (
+    SELECT
+        nyc.faa AS origin_code,
+        nyc.name AS origin_name,
+        chicago.faa AS dest_code,
+        chicago.name AS dest_name,
+        SUM(p.seats) AS total_seats
+    FROM
+        flights f
+    JOIN
+        airports nyc ON f.origin = nyc.faa
+    JOIN
+        airports chicago ON f.dest = chicago.faa
+    JOIN
+        planes p ON f.tailnum = p.tailnum
+    WHERE
+        nyc.faa IN ('JFK', 'LGA', 'EWR')
+        AND chicago.faa IN (SELECT faa FROM chicago_airports)
+    GROUP BY
+        nyc.faa, nyc.name, chicago.faa, chicago.name
+),
+ranked_seats AS (
+    SELECT
+        origin_code,
+        origin_name,
+        dest_code,
+        dest_name,
+        total_seats,
+        RANK() OVER (ORDER BY total_seats DESC, origin_code, dest_code) AS rank
+    FROM
+        nyc_to_chicago_seats
+)
+SELECT
+    origin_code,
+    origin_name,
+    dest_code,
+    dest_name,
+    total_seats,
+    rank
+FROM
+    ranked_seats
+ORDER BY
+    total_seats DESC,
+    origin_code,
+    dest_code;
+```
 
 # Task 4
 
